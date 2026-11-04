@@ -10,6 +10,7 @@ import { RequestLeavePage } from './pages/RequestLeavePage.jsx';
 import { TeamRequests } from './pages/TeamRequests.jsx';
 import { AdminUsers } from './pages/AdminUsers.jsx';
 import { AdminLeaveTypes } from './pages/AdminLeaveTypes.jsx';
+import { Integrations } from './pages/Integrations.jsx';
 
 export function App() {
   const location = useLocation();
@@ -54,6 +55,14 @@ export function App() {
             }
           />
           <Route
+            path="/integrations"
+            element={
+              <ProtectedRoute>
+                <Integrations />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/request"
             element={
               <ProtectedRoute>
@@ -86,6 +95,17 @@ export function App() {
             }
           />
         </Routes>
+        {!isLoginPage && (
+          <footer className="app-footer">
+            <span>Copyright Numrah &copy; {new Date().getFullYear()} &middot; Manage your PTO from your mobile:</span>
+            <span className="store-btn" title="Mobile apps coming soon">
+              Download for iOS
+            </span>
+            <span className="store-btn" title="Mobile apps coming soon">
+              Download for Android
+            </span>
+          </footer>
+        )}
       </div>
     </div>
   );

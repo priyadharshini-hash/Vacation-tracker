@@ -38,8 +38,20 @@ export const api = {
   createRequest: (token, body) => request('/requests', { method: 'POST', body, token }),
   getTeamRequests: (token) => request('/requests/team', { token }),
   decideRequest: (token, id, status) => request(`/requests/${id}/decide`, { method: 'PUT', body: { status }, token }),
-  getCalendar: (token, start, end, department) =>
-    request(`/requests/calendar?start=${start}&end=${end}${department ? `&department=${encodeURIComponent(department)}` : ''}`, { token }),
+  // department / locations: a string or an array of strings (multi-select filters)
+  getCalendar: (token, start, end, department, locations) => {
+    const qs = new URLSearchParams({ start, end });
+    [].concat(department || []).forEach((d) => qs.append('department', d));
+    [].concat(locations || []).forEach((l) => qs.append('location', l));
+    return request(`/requests/calendar?${qs}`, { token });
+  },
+  getCalendarToken: (token) => request('/calendar/token', { token }),
+  regenerateCalendarToken: (token) => request('/calendar/token/regenerate', { method: 'POST', token }),
+  getLocations: (token) => request('/meta/locations', { token }),
+
+  getDepartments: (token) => request('/meta/departments', { token }),
+  getHeadcount: (token, department) =>
+    request(`/meta/headcount${department ? `?department=${encodeURIComponent(department)}` : ''}`, { token }),
 
   getHolidays: (token, year) => request(`/holidays?year=${year}`, { token }),
   createHoliday: (token, body) => request('/holidays', { method: 'POST', body, token }),

@@ -5,7 +5,7 @@ import { requireAuth, requireRole } from '../middleware/auth.js';
 const router = Router();
 
 router.get('/', requireAuth, async (req, res) => {
-  const result = await pool.query('SELECT * FROM leave_types ORDER BY name');
+  const result = await pool.query('SELECT * FROM leave_types ORDER BY is_default DESC, name');
   res.json(result.rows);
 });
 
@@ -29,15 +29,36 @@ router.post('/', requireAuth, requireRole('admin'), async (req, res) => {
 });
 
 router.put('/:id', requireAuth, requireRole('admin'), async (req, res) => {
-  const { name, defaultDaysPerYear } = req.body;
-  const result = await pool.query(
-    'UPDATE leave_types SET name = COALESCE($1, name), default_days_per_year = COALESCE($2, default_days_per_year) WHERE id = $3 RETURNING *',
-    [name, defaultDaysPerYear, req.params.id]
-  );
-  if (result.rows.length === 0) {
-    return res.status(404).json({ error: 'Leave type not found' });
+  const { name, defaultDaysPerYear, isDefault } = req.body;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    if (isDefault === true) {
+      await client.query('UPDATE leave_types SET is_default = false WHERE id <> $1', [req.params.id]);
+    }
+    const result = await client.query(
+      `UPDATE leave_types
+       SET name = COALESCE($1, name),
+           default_days_per_year = COALESCE($2, default_days_per_year),
+           is_default = COALESCE($3, is_default)
+       WHERE id = $4 RETURNING *`,
+      [name, defaultDaysPerYear, typeof isDefault === 'boolean' ? isDefault : null, req.params.id]
+    );
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Leave type not found' });
+    }
+    await client.query('COMMIT');
+    res.json(result.rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'A leave type with that name already exists' });
+    }
+    throw err;
+  } finally {
+    client.release();
   }
-  res.json(result.rows[0]);
 });
 
 router.delete('/:id', requireAuth, requireRole('admin'), async (req, res) => {
