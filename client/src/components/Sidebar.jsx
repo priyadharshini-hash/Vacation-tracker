@@ -124,7 +124,7 @@ export function Sidebar() {
         {!collapsed && (
           <div className="sidebar-brand">
             <span className="sidebar-brand-mark">N</span>
-            <span className="sidebar-brand-name">Numrah Vacation Tracker</span>
+            <span className="sidebar-brand-name">Numrah Leaves Tracker</span>
           </div>
         )}
       </div>

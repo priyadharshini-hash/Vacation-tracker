@@ -65,9 +65,9 @@ router.get('/feed/:token.ics', async (req, res) => {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Numrah//Vacation Tracker//EN',
+    'PRODID:-//Numrah//Leaves Tracker//EN',
     'CALSCALE:GREGORIAN',
-    `X-WR-CALNAME:${escapeText('Numrah Vacation Tracker')}`,
+    `X-WR-CALNAME:${escapeText('Numrah Leaves Tracker')}`,
   ];
 
   for (const l of leaves.rows) {
