@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -43,6 +44,21 @@ const icons = {
       <path d="M14.5 4.5c1.4.4 2.3 1.6 2.3 3s-.9 2.6-2.3 3M17 17c-.4-1.6-1.2-2.8-2.2-3.6" strokeLinecap="round" />
     </svg>
   ),
+  integrations: (
+    <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M7.5 12.5l5-5M6 9.5L4.2 11.3a2.7 2.7 0 0 0 3.8 3.8L9.8 13.3M14 10.5l1.8-1.8A2.7 2.7 0 0 0 12 4.9L10.2 6.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  menu: (
+    <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M3 5h14M8 10h9M3 15h14M5 8l-2.5 2L5 12" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  bolt: (
+    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M11 2.5L4.5 11H10l-1 6.5L15.5 9H10z" strokeLinejoin="round" />
+    </svg>
+  ),
   leaveTypes: (
     <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path d="M4 4h12M4 10h12M4 16h7" strokeLinecap="round" />
@@ -54,15 +70,38 @@ function NavItem({ to, icon, label, end }) {
   return (
     <NavLink to={to} end={end} className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}>
       <span className="sidebar-icon">{icon}</span>
-      {label}
+      <span className="sidebar-label">{label}</span>
     </NavLink>
   );
+}
+
+const COLLAPSE_KEY = 'sidebar-collapsed';
+
+function readCollapsed() {
+  try {
+    return localStorage.getItem(COLLAPSE_KEY) === '1';
+  } catch {
+    return false;
+  }
 }
 
 export function Sidebar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [collapsed, setCollapsed] = useState(readCollapsed);
   if (!user) return null;
+
+  function toggleCollapsed() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(COLLAPSE_KEY, next ? '1' : '0');
+      } catch {
+        // storage unavailable; the toggle still works for this session
+      }
+      return next;
+    });
+  }
 
   const initials = user.name
     .split(' ')
@@ -72,14 +111,27 @@ export function Sidebar() {
     .toUpperCase();
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar-brand">
-        <span className="sidebar-brand-mark">N</span>
-        Numrah Vacation Tracker
+    <aside className={`sidebar${collapsed ? ' collapsed' : ''}`}>
+      <div className="sidebar-top">
+        <button
+          className="sidebar-toggle"
+          onClick={toggleCollapsed}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {icons.menu}
+        </button>
+        {!collapsed && (
+          <div className="sidebar-brand">
+            <span className="sidebar-brand-mark">N</span>
+            <span className="sidebar-brand-name">Numrah Vacation Tracker</span>
+          </div>
+        )}
       </div>
 
-      <button className="sidebar-request-btn" onClick={() => navigate('/request')}>
-        Request Leave
+      <button className="sidebar-request-btn" onClick={() => navigate('/request')} title="Request Leave">
+        <span className="sidebar-label">Request Leave</span>
+        {icons.bolt}
       </button>
 
       <nav className="sidebar-nav">
@@ -87,6 +139,7 @@ export function Sidebar() {
         <NavItem to="/calendar" icon={icons.calendar} label="Calendar" />
         <NavItem to="/holidays" icon={icons.holidays} label="Holidays" />
         <NavItem to="/profile" icon={icons.profile} label="My Profile" />
+        <NavItem to="/integrations" icon={icons.integrations} label="Integrations" />
 
         {(user.role === 'manager' || user.role === 'admin') && (
           <>

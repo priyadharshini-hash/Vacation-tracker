@@ -38,7 +38,7 @@ npm run dev
 The API runs on `http://localhost:4000`. `npm run seed` creates:
 
 - An admin user: `admin@numrah.com` / `Admin123!` (override via `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` in `.env`)
-- Two leave types: Annual (20 days/year), Sick (10 days/year)
+- Three leave types: Personal Leave (20 days/year, pinned default), Sick Leave (10), Travel Work Leave (5) — editable under Admin > Leave types
 
 ## 3. Set up and run the client
 

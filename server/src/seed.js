@@ -21,8 +21,9 @@ async function run() {
   }
 
   const leaveTypes = [
-    { name: 'Annual', default_days_per_year: 20 },
-    { name: 'Sick', default_days_per_year: 10 },
+    { name: 'Personal Leave', default_days_per_year: 20 },
+    { name: 'Sick Leave', default_days_per_year: 10 },
+    { name: 'Travel Work Leave', default_days_per_year: 5 },
   ];
 
   for (const lt of leaveTypes) {
@@ -35,6 +36,11 @@ async function run() {
       console.log(`Seeded leave type: ${lt.name}`);
     }
   }
+
+  await pool.query(
+    `UPDATE leave_types SET is_default = true
+     WHERE name = 'Personal Leave' AND NOT EXISTS (SELECT 1 FROM leave_types WHERE is_default = true)`
+  );
 
   await pool.end();
 }

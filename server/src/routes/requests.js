@@ -64,25 +64,38 @@ router.get('/calendar', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'start and end query params are required' });
   }
 
-  const params = [start, end];
-  let departmentClause = '';
+  // department / location may be repeated query params (multi-select filters); 'all' means no filter.
+  const listParam = (value) => [].concat(value || []).map(String).filter((v) => v && v !== 'all');
+  const departments = listParam(req.query.department);
+  const locations = listParam(req.query.location);
 
-  if (req.user.role === 'admin' && req.query.department && req.query.department !== 'all') {
-    params.push(req.query.department);
-    departmentClause = `AND u.department = $${params.length}`;
-  } else if (req.user.role !== 'admin') {
+  const params = [start, end];
+  let filterClause = '';
+
+  if (req.user.role === 'admin') {
+    if (departments.length > 0) {
+      params.push(departments);
+      filterClause += ` AND u.department = ANY($${params.length}::text[])`;
+    }
+  } else {
+    // Non-admins only ever see their own department.
     params.push(req.user.id);
-    departmentClause = `AND u.department IS NOT DISTINCT FROM (SELECT department FROM users WHERE id = $${params.length})`;
+    filterClause += ` AND u.department IS NOT DISTINCT FROM (SELECT department FROM users WHERE id = $${params.length})`;
+  }
+  if (locations.length > 0) {
+    params.push(locations);
+    filterClause += ` AND u.location = ANY($${params.length}::text[])`;
   }
 
   const result = await pool.query(
-    `SELECT r.id, r.user_id AS "userId", u.name AS "userName", u.department, r.leave_type_id AS "leaveTypeId",
+    `SELECT r.id, r.user_id AS "userId", u.name AS "userName", u.department, u.location,
+            r.leave_type_id AS "leaveTypeId",
             lt.name AS "leaveTypeName", r.start_date AS "startDate", r.end_date AS "endDate", r.status
      FROM leave_requests r
      JOIN users u ON u.id = r.user_id
      JOIN leave_types lt ON lt.id = r.leave_type_id
-     WHERE r.status = 'approved' AND r.start_date <= $2 AND r.end_date >= $1 ${departmentClause}
-     ORDER BY r.start_date`,
+     WHERE r.status = 'approved' AND r.start_date <= $2 AND r.end_date >= $1 ${filterClause}
+     ORDER BY r.start_date, u.name`,
     params
   );
   res.json(result.rows);

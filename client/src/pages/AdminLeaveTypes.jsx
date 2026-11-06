@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { api } from '../api.js';
+import { PinIcon } from '../components/LeaveTypeSelect.jsx';
 
 export function AdminLeaveTypes() {
   const { token } = useAuth();
@@ -44,6 +45,16 @@ export function AdminLeaveTypes() {
     }
   }
 
+  async function handleSetDefault(id) {
+    setError('');
+    try {
+      await api.updateLeaveType(token, id, { isDefault: true });
+      await load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   if (loading) return <p className="page-loading">Loading...</p>;
 
   return (
@@ -61,9 +72,16 @@ export function AdminLeaveTypes() {
         <tbody>
           {leaveTypes.map((lt) => (
             <tr key={lt.id}>
-              <td>{lt.name}</td>
+              <td>
+                {lt.name} {lt.is_default && <PinIcon />}
+              </td>
               <td>{lt.default_days_per_year}</td>
               <td>
+                {!lt.is_default && (
+                  <button className="secondary" onClick={() => handleSetDefault(lt.id)}>
+                    Pin as default
+                  </button>
+                )}{' '}
                 <button className="secondary" onClick={() => handleDelete(lt.id)}>
                   Delete
                 </button>

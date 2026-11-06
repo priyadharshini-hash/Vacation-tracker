@@ -7,6 +7,8 @@ import userRoutes from './routes/users.js';
 import leaveTypeRoutes from './routes/leaveTypes.js';
 import requestRoutes from './routes/requests.js';
 import holidayRoutes from './routes/holidays.js';
+import metaRoutes from './routes/meta.js';
+import calendarRoutes from './routes/calendar.js';
 
 dotenv.config();
 
@@ -21,6 +23,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/leave-types', leaveTypeRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/holidays', holidayRoutes);
+app.use('/api/meta', metaRoutes);
+app.use('/api/calendar', calendarRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err);
