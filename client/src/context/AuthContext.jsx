@@ -31,6 +31,13 @@ export function AuthProvider({ children }) {
     return data.user;
   }
 
+  // Used after "Sign in with Slack": the server hands back a ready-made token.
+  function loginWithToken(newToken) {
+    localStorage.setItem('token', newToken);
+    setLoading(true);
+    setToken(newToken);
+  }
+
   function logout() {
     localStorage.removeItem('token');
     setToken(null);
@@ -38,7 +45,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ token, user, loading, login, logout }}>
+    <AuthContext.Provider value={{ token, user, loading, login, loginWithToken, logout }}>
       {children}
     </AuthContext.Provider>
   );

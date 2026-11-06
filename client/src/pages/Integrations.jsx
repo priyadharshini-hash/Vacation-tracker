@@ -12,7 +12,7 @@ export function Integrations() {
   return (
     <div className="page">
       <h2>Integrations</h2>
-      <p className="muted-small">Connect Numrah Vacation Tracker with the tools your team already uses.</p>
+      <p className="muted-small">Connect Numrah Leaves Tracker with the tools your team already uses.</p>
       <div className="integration-grid">
         {INTEGRATIONS.map((item) => (
           <div key={item.name} className="panel integration-card">

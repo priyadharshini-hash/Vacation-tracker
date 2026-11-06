@@ -1,4 +1,4 @@
-# Numrah Vacation Tracker
+# Numrah Leaves Tracker
 
 A team vacation/leave tracker. Employees submit leave requests, managers approve/reject requests
 from their direct reports, and admins manage users, leave types, and per-employee allowances.
@@ -38,7 +38,7 @@ npm run dev
 The API runs on `http://localhost:4000`. `npm run seed` creates:
 
 - An admin user: `admin@numrah.com` / `Admin123!` (override via `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` in `.env`)
-- Three leave types: Personal Leave (20 days/year, pinned default), Sick Leave (10), Travel Work Leave (5) — editable under Admin > Leave types
+- Three leave types: Personal Leave (10 days/year, pinned default), Travel Work Leave (10), Sick Leave (unlimited) — days, the unlimited flag and the pinned default are editable under Admin > Leave types
 
 ## 3. Set up and run the client
 
@@ -61,9 +61,53 @@ Open `http://localhost:5173`, log in as the seeded admin, then:
 3. Log out and log in as the employee to submit a leave request.
 4. Log out and log in as the manager to approve/reject it under **Team Requests**.
 
+## 5. Optional: Sign in with Slack
+
+Lets the team log in with their Slack account, like "Sign in with Google". The button only shows up
+once Slack is configured.
+
+1. Go to <https://api.slack.com/apps> and choose **Create New App** > **From scratch** (name it e.g.
+   "Numrah Leaves Tracker", pick the Numrah workspace).
+2. Under **OAuth & Permissions** > **Redirect URLs**, add `<APP_URL>/api/auth/slack/callback` and click
+   **Save URLs**. Slack only accepts `https://` addresses (it rejects `http://localhost` with "invalid
+   redirect_uri"), so locally use `https://localhost:5173/api/auth/slack/callback` and set
+   `APP_URL=https://localhost:5173` (see "Local HTTPS" below). In production use your real `https://` address.
+3. Under **OAuth & Permissions** > **User Token Scopes**, add `openid`, `email` and `profile`.
+4. Under **Basic Information** > **App Credentials**, copy the Client ID and Client Secret.
+5. Put these in `server/.env` (this file is git-ignored; never commit the secret) and restart the server:
+
+   ```
+   APP_URL=http://localhost:5173
+   SLACK_CLIENT_ID=...
+   SLACK_CLIENT_SECRET=...
+   SLACK_TEAM_ID=T...   # optional but recommended: your workspace ID
+   ```
+
+**Local HTTPS.** If `client/certs/localhost.pfx` exists, the Vite dev server serves the app on
+`https://localhost:5173`. Create a throwaway certificate once (PowerShell), then restart the client; the browser
+shows a one-time "not private" warning for it (choose Advanced > Proceed to localhost):
+
+```powershell
+New-Item -ItemType Directory -Force client\certs | Out-Null
+$c = New-SelfSignedCertificate -DnsName localhost -CertStoreLocation Cert:\CurrentUser\My -NotAfter (Get-Date).AddYears(1) -KeyExportPolicy Exportable
+Export-PfxCertificate -Cert $c -FilePath client\certs\localhost.pfx -Password (ConvertTo-SecureString 'localhost-dev' -AsPlainText -Force)
+Remove-Item "Cert:\CurrentUser\My\$($c.Thumbprint)"
+```
+
+`client/certs/` is git-ignored. Without the file the app runs on plain `http://localhost:5173` as before.
+
+How it behaves:
+
+- A person signs in with the Slack email; it is matched (case-insensitive) to an existing user.
+- With `SLACK_TEAM_ID` set, only people in that workspace can sign in, and anyone without an account is
+  created automatically as an **employee** (with default balances). An admin can change their role later.
+- Without `SLACK_TEAM_ID`, only people who already have an account can sign in (nobody is auto-created).
+- Email and password login keeps working alongside Slack.
+
 ## Notes on the leave balance model
 
 - Each employee has one balance row per (leave type, year), with an `allotted_days` and `used_days` count.
+- **Unlimited** leave types (Sick Leave by default) skip the balance check; days taken are still counted.
 - Submitting a request checks it against the employee's remaining balance, but `used_days` is only
   incremented when a request is **approved** — pending requests don't lock in days.
 - Rejected requests never affect the balance.

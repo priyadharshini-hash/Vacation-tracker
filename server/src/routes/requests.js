@@ -35,17 +35,25 @@ router.post('/', requireAuth, async (req, res) => {
   const daysRequested = daysBetweenInclusive(startDate, endDate);
   const year = new Date(startDate).getFullYear();
 
-  const balanceResult = await pool.query(
-    `SELECT allotted_days AS "allottedDays", used_days AS "usedDays"
-     FROM leave_balances WHERE user_id = $1 AND leave_type_id = $2 AND year = $3`,
-    [req.user.id, leaveTypeId, year]
-  );
-  const balance = balanceResult.rows[0] || { allottedDays: 0, usedDays: 0 };
-  const remaining = Number(balance.allottedDays) - Number(balance.usedDays);
-  if (daysRequested > remaining) {
-    return res.status(400).json({
-      error: `Insufficient balance: requested ${daysRequested} day(s), ${remaining} day(s) remaining`,
-    });
+  const typeResult = await pool.query('SELECT is_unlimited FROM leave_types WHERE id = $1', [leaveTypeId]);
+  if (typeResult.rows.length === 0) {
+    return res.status(400).json({ error: 'Unknown leave type' });
+  }
+
+  // Unlimited leave types (e.g. Sick Leave) have no balance to check.
+  if (!typeResult.rows[0].is_unlimited) {
+    const balanceResult = await pool.query(
+      `SELECT allotted_days AS "allottedDays", used_days AS "usedDays"
+       FROM leave_balances WHERE user_id = $1 AND leave_type_id = $2 AND year = $3`,
+      [req.user.id, leaveTypeId, year]
+    );
+    const balance = balanceResult.rows[0] || { allottedDays: 0, usedDays: 0 };
+    const remaining = Number(balance.allottedDays) - Number(balance.usedDays);
+    if (daysRequested > remaining) {
+      return res.status(400).json({
+        error: `Insufficient balance: requested ${daysRequested} day(s), ${remaining} day(s) remaining`,
+      });
+    }
   }
 
   const result = await pool.query(
@@ -134,11 +142,12 @@ router.put('/:id/decide', requireAuth, requireRole('manager', 'admin'), async (r
     await client.query('BEGIN');
 
     const reqResult = await client.query(
-      `SELECT r.*, u.manager_id AS "managerId"
+      `SELECT r.*, u.manager_id AS "managerId", lt.is_unlimited AS "isUnlimited"
        FROM leave_requests r
        JOIN users u ON u.id = r.user_id
+       JOIN leave_types lt ON lt.id = r.leave_type_id
        WHERE r.id = $1
-       FOR UPDATE`,
+       FOR UPDATE OF r`,
       [req.params.id]
     );
     const request = reqResult.rows[0];
@@ -165,16 +174,19 @@ router.put('/:id/decide', requireAuth, requireRole('manager', 'admin'), async (r
       );
       const balance = balanceResult.rows[0] || { allottedDays: 0, usedDays: 0 };
       const remaining = Number(balance.allottedDays) - Number(balance.usedDays);
-      if (Number(request.days_requested) > remaining) {
+      if (!request.isUnlimited && Number(request.days_requested) > remaining) {
         await client.query('ROLLBACK');
         return res.status(400).json({
           error: `Cannot approve: only ${remaining} day(s) remaining for this employee`,
         });
       }
 
+      // Upsert so unlimited types still track days taken even without a pre-created balance row.
       await client.query(
-        `UPDATE leave_balances SET used_days = used_days + $1
-         WHERE user_id = $2 AND leave_type_id = $3 AND year = $4`,
+        `INSERT INTO leave_balances (user_id, leave_type_id, year, allotted_days, used_days)
+         VALUES ($2, $3, $4, 0, $1)
+         ON CONFLICT (user_id, leave_type_id, year)
+         DO UPDATE SET used_days = leave_balances.used_days + EXCLUDED.used_days`,
         [request.days_requested, request.user_id, request.leave_type_id, year]
       );
     }

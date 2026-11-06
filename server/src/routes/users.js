@@ -2,6 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { pool } from '../db.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
+import { createDefaultBalances } from '../lib/balances.js';
 
 const router = Router();
 
@@ -34,16 +35,7 @@ router.post('/', requireAuth, requireRole('admin'), async (req, res) => {
       [name, email, hash, role, managerId || null, department || null, location || null]
     );
 
-    const year = new Date().getFullYear();
-    const leaveTypes = await pool.query('SELECT id, default_days_per_year FROM leave_types');
-    for (const lt of leaveTypes.rows) {
-      await pool.query(
-        `INSERT INTO leave_balances (user_id, leave_type_id, year, allotted_days, used_days)
-         VALUES ($1, $2, $3, $4, 0)
-         ON CONFLICT (user_id, leave_type_id, year) DO NOTHING`,
-        [result.rows[0].id, lt.id, year, lt.default_days_per_year]
-      );
-    }
+    await createDefaultBalances(result.rows[0].id);
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -88,7 +80,8 @@ router.get('/:id/balances', requireAuth, async (req, res) => {
 
   const year = Number(req.query.year) || new Date().getFullYear();
   const result = await pool.query(
-    `SELECT lt.id AS "leaveTypeId", lt.name, b.allotted_days AS "allottedDays", b.used_days AS "usedDays"
+    `SELECT lt.id AS "leaveTypeId", lt.name, lt.is_unlimited AS "isUnlimited",
+            b.allotted_days AS "allottedDays", b.used_days AS "usedDays"
      FROM leave_types lt
      LEFT JOIN leave_balances b ON b.leave_type_id = lt.id AND b.user_id = $1 AND b.year = $2
      ORDER BY lt.name`,

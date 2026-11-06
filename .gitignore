@@ -2,3 +2,6 @@ node_modules/
 .env
 dist/
 *.log
+
+# Local HTTPS certificate for Sign in with Slack (generated per machine)
+client/certs/

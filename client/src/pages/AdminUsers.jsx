@@ -189,13 +189,17 @@ function BalancesEditor({ user }) {
         return (
           <div key={lt.id} className="balance-row">
             <span>{lt.name}</span>
-            <input
-              type="number"
-              min="0"
-              defaultValue={balance.allottedDays}
-              key={`${lt.id}-${balance.allottedDays}`}
-              onBlur={(e) => save(lt.id, e.target.value)}
-            />
+            {lt.is_unlimited ? (
+              <span className="balance-unlimited">Unlimited</span>
+            ) : (
+              <input
+                type="number"
+                min="0"
+                defaultValue={balance.allottedDays}
+                key={`${lt.id}-${balance.allottedDays}`}
+                onBlur={(e) => save(lt.id, e.target.value)}
+              />
+            )}
             <span className="balance-detail">({balance.usedDays} used)</span>
             {savingId === lt.id && <span>Saving...</span>}
           </div>

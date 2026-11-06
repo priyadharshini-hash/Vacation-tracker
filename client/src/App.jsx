@@ -2,6 +2,7 @@ import { Routes, Route, useLocation } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar.jsx';
 import { ProtectedRoute } from './components/ProtectedRoute.jsx';
 import { Login } from './pages/Login.jsx';
+import { SlackCallback } from './pages/SlackCallback.jsx';
 import { Dashboard } from './pages/Dashboard.jsx';
 import { CalendarPage } from './pages/CalendarPage.jsx';
 import { Holidays } from './pages/Holidays.jsx';
@@ -14,7 +15,7 @@ import { Integrations } from './pages/Integrations.jsx';
 
 export function App() {
   const location = useLocation();
-  const isLoginPage = location.pathname === '/login';
+  const isLoginPage = location.pathname === '/login' || location.pathname === '/auth/slack';
 
   return (
     <div className={isLoginPage ? '' : 'app-shell'}>
@@ -22,6 +23,7 @@ export function App() {
       <div className={isLoginPage ? '' : 'app-content'}>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/auth/slack" element={<SlackCallback />} />
           <Route
             path="/"
             element={
