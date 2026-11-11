@@ -4,20 +4,26 @@ import { pool } from './db.js';
 
 dotenv.config();
 
+const DEFAULT_PASSWORD = 'Admin123!';
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL || 'admin@numrah.com';
-const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || 'Admin123!';
+const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || DEFAULT_PASSWORD;
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 async function run() {
   const existing = await pool.query('SELECT id FROM users WHERE email = $1', [ADMIN_EMAIL]);
-  if (existing.rows.length === 0) {
+  if (existing.rows.length > 0) {
+    console.log(`Admin user ${ADMIN_EMAIL} already exists, skipping.`);
+  } else if (IS_PRODUCTION && (!process.env.SEED_ADMIN_PASSWORD || ADMIN_PASSWORD === DEFAULT_PASSWORD)) {
+    // Never create an admin with the well-known default password on a live site.
+    console.warn('Skipping admin creation: set SEED_ADMIN_EMAIL and a strong SEED_ADMIN_PASSWORD (not the default) in production.');
+  } else {
     const hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
     await pool.query(
       `INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, 'admin')`,
       ['Admin', ADMIN_EMAIL, hash]
     );
-    console.log(`Seeded admin user: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
-  } else {
-    console.log(`Admin user ${ADMIN_EMAIL} already exists, skipping.`);
+    // The password is only echoed for local development, never into production logs.
+    console.log(IS_PRODUCTION ? `Seeded admin user: ${ADMIN_EMAIL}` : `Seeded admin user: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
   }
 
   const leaveTypes = [

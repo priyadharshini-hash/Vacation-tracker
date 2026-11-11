@@ -11,6 +11,8 @@ pg.types.setTypeParser(1082, (val) => val);
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  // Hosted databases usually require an encrypted connection: set DATABASE_SSL=true on the host.
+  ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
 });
 
 export function query(text, params) {
