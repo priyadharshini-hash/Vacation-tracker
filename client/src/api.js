@@ -22,6 +22,7 @@ async function request(path, { method = 'GET', body, token } = {}) {
 export const api = {
   login: (email, password) => request('/auth/login', { method: 'POST', body: { email, password } }),
   me: (token) => request('/auth/me', { token }),
+  getAuthProviders: () => request('/auth/providers'),
 
   getLeaveTypes: (token) => request('/leave-types', { token }),
   createLeaveType: (token, body) => request('/leave-types', { method: 'POST', body, token }),

@@ -300,8 +300,10 @@ export function Dashboard() {
         <div className="panel balance-panel">
           <div className="balance-top">
             <div>
-              <div className="balance-days">{remaining}d</div>
-              <p className="balance-caption">{selectedType?.name} balance</p>
+              <div className="balance-days">{selectedType?.is_unlimited ? '∞' : `${remaining}d`}</div>
+              <p className="balance-caption">
+                {selectedType?.name} balance{selectedType?.is_unlimited ? ' (unlimited)' : ''}
+              </p>
             </div>
             <LeaveTypeSelect options={leaveTypes} value={selectedTypeId} onChange={setSelectedTypeId} />
           </div>

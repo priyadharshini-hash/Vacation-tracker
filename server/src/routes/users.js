@@ -2,6 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { pool } from '../db.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
+import { createDefaultBalances } from '../lib/balances.js';
 
 const router = Router();
 
@@ -34,16 +35,7 @@ router.post('/', requireAuth, requireRole('admin'), async (req, res) => {
       [name, email, hash, role, managerId || null, department || null, location || null]
     );
 
-    const year = new Date().getFullYear();
-    const leaveTypes = await pool.query('SELECT id, default_days_per_year FROM leave_types');
-    for (const lt of leaveTypes.rows) {
-      await pool.query(
-        `INSERT INTO leave_balances (user_id, leave_type_id, year, allotted_days, used_days)
-         VALUES ($1, $2, $3, $4, 0)
-         ON CONFLICT (user_id, leave_type_id, year) DO NOTHING`,
-        [result.rows[0].id, lt.id, year, lt.default_days_per_year]
-      );
-    }
+    await createDefaultBalances(result.rows[0].id);
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -59,20 +51,42 @@ router.put('/:id', requireAuth, requireRole('admin'), async (req, res) => {
   if (role && !['employee', 'manager', 'admin'].includes(role)) {
     return res.status(400).json({ error: 'role must be employee, manager, or admin' });
   }
-  // managerId may legitimately be set to null (no manager), so it's only touched
-  // when the key is present in the request body, unlike the COALESCE fields below.
-  const managerIdProvided = Object.prototype.hasOwnProperty.call(req.body, 'managerId');
+  const targetId = Number(req.params.id);
+  if (name !== undefined && !String(name).trim()) {
+    return res.status(400).json({ error: 'name cannot be empty' });
+  }
+  if (role && targetId === req.user.id && role !== 'admin') {
+    return res.status(400).json({ error: "You can't remove your own admin role. Ask another admin to do it." });
+  }
+  if (managerId != null && Number(managerId) === targetId) {
+    return res.status(400).json({ error: "A person can't be their own manager" });
+  }
+
+  // managerId, department and location may legitimately be cleared (set to null), so each is only
+  // touched when its key is present in the request body, unlike the COALESCE fields below.
+  const has = (key) => Object.prototype.hasOwnProperty.call(req.body, key);
+  const clean = (value) => (value == null || String(value).trim() === '' ? null : String(value).trim());
 
   const result = await pool.query(
     `UPDATE users SET
        name = COALESCE($1, name),
        role = COALESCE($2, role),
        manager_id = CASE WHEN $3 THEN $4 ELSE manager_id END,
-       department = COALESCE($5, department),
-       location = COALESCE($6, location)
-     WHERE id = $7
+       department = CASE WHEN $5 THEN $6 ELSE department END,
+       location = CASE WHEN $7 THEN $8 ELSE location END
+     WHERE id = $9
      RETURNING id, name, email, role, manager_id AS "managerId", department, location`,
-    [name, role, managerIdProvided, managerId ?? null, department, location, req.params.id]
+    [
+      name !== undefined ? String(name).trim() : null,
+      role,
+      has('managerId'),
+      managerId ?? null,
+      has('department'),
+      clean(department),
+      has('location'),
+      clean(location),
+      targetId,
+    ]
   );
   if (result.rows.length === 0) {
     return res.status(404).json({ error: 'User not found' });
@@ -88,7 +102,8 @@ router.get('/:id/balances', requireAuth, async (req, res) => {
 
   const year = Number(req.query.year) || new Date().getFullYear();
   const result = await pool.query(
-    `SELECT lt.id AS "leaveTypeId", lt.name, b.allotted_days AS "allottedDays", b.used_days AS "usedDays"
+    `SELECT lt.id AS "leaveTypeId", lt.name, lt.is_unlimited AS "isUnlimited",
+            b.allotted_days AS "allottedDays", b.used_days AS "usedDays"
      FROM leave_types lt
      LEFT JOIN leave_balances b ON b.leave_type_id = lt.id AND b.user_id = $1 AND b.year = $2
      ORDER BY lt.name`,

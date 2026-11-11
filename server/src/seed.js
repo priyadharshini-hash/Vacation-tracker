@@ -21,17 +21,17 @@ async function run() {
   }
 
   const leaveTypes = [
-    { name: 'Personal Leave', default_days_per_year: 20 },
-    { name: 'Sick Leave', default_days_per_year: 10 },
-    { name: 'Travel Work Leave', default_days_per_year: 5 },
+    { name: 'Personal Leave', default_days_per_year: 10, is_unlimited: false },
+    { name: 'Sick Leave', default_days_per_year: 0, is_unlimited: true },
+    { name: 'Travel Work Leave', default_days_per_year: 10, is_unlimited: false },
   ];
 
   for (const lt of leaveTypes) {
     const existingType = await pool.query('SELECT id FROM leave_types WHERE name = $1', [lt.name]);
     if (existingType.rows.length === 0) {
       await pool.query(
-        'INSERT INTO leave_types (name, default_days_per_year) VALUES ($1, $2)',
-        [lt.name, lt.default_days_per_year]
+        'INSERT INTO leave_types (name, default_days_per_year, is_unlimited) VALUES ($1, $2, $3)',
+        [lt.name, lt.default_days_per_year, lt.is_unlimited]
       );
       console.log(`Seeded leave type: ${lt.name}`);
     }
