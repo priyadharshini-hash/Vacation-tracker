@@ -32,12 +32,16 @@ export function Login() {
   const [error, setError] = useState(() => SLACK_ERRORS[searchParams.get('error')] || '');
   const [submitting, setSubmitting] = useState(false);
   const [slackEnabled, setSlackEnabled] = useState(false);
+  const [providersLoaded, setProvidersLoaded] = useState(false);
+  // Slack comes first; the email form opens on request (or via /login?email=1, handy for the admin account).
+  const [showEmail, setShowEmail] = useState(() => searchParams.get('email') === '1');
 
   useEffect(() => {
     api
       .getAuthProviders()
       .then((p) => setSlackEnabled(Boolean(p?.slack)))
-      .catch(() => setSlackEnabled(false));
+      .catch(() => setSlackEnabled(false))
+      .finally(() => setProvidersLoaded(true));
   }, []);
 
   if (user) return <Navigate to="/" replace />;
@@ -55,32 +59,49 @@ export function Login() {
     }
   }
 
+  const emailFormVisible = providersLoaded && (!slackEnabled || showEmail);
+  const slackFirst = providersLoaded && slackEnabled;
+
   return (
     <div className="login-page">
       <form className="login-form" onSubmit={handleSubmit}>
         <h1>Numrah Leaves Tracker</h1>
+        {slackFirst && <p className="login-sub">Sign in with your Numrah Slack account.</p>}
         {error && <p className="form-error">{error}</p>}
-        {slackEnabled && (
+
+        {slackFirst && (
+          <a className="slack-btn slack-btn-primary" href="/api/auth/slack">
+            <SlackLogo /> Sign in with Slack
+          </a>
+        )}
+
+        {slackFirst && !showEmail && (
+          <button type="button" className="link-btn" onClick={() => setShowEmail(true)}>
+            Use email and password instead
+          </button>
+        )}
+
+        {slackFirst && showEmail && (
+          <div className="login-divider">
+            <span>or use email</span>
+          </div>
+        )}
+
+        {emailFormVisible && (
           <>
-            <a className="slack-btn" href="/api/auth/slack">
-              <SlackLogo /> Sign in with Slack
-            </a>
-            <div className="login-divider">
-              <span>or use email</span>
-            </div>
+            <label>
+              Email
+              <input id="login-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            </label>
+            <label>
+              Password
+              <input id="login-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            </label>
+            <button type="submit" disabled={submitting}>
+              {submitting ? 'Signing in...' : 'Sign in'}
+            </button>
           </>
         )}
-        <label>
-          Email
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        </label>
-        <label>
-          Password
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        </label>
-        <button type="submit" disabled={submitting}>
-          {submitting ? 'Signing in...' : 'Sign in'}
-        </button>
       </form>
     </div>
   );
