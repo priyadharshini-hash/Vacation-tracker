@@ -1,0 +1,13 @@
+{
+  "name": "numrah-leaves-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Numrah Leaves Tracker: build and start commands used by hosting services that deploy from GitHub.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm ci --prefix client && npm run build --prefix client && npm ci --prefix server",
+    "start": "npm run start:prod --prefix server"
+  }
+}

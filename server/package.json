@@ -3,9 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
+    "start:prod": "node src/migrate.js && node src/seed.js && node src/index.js",
     "migrate": "node src/migrate.js",
     "seed": "node src/seed.js"
   },

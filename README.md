@@ -104,6 +104,44 @@ How it behaves:
 - Without `SLACK_TEAM_ID`, only people who already have an account can sign in (nobody is auto-created).
 - Email and password login keeps working alongside Slack.
 
+## 6. Deploy from GitHub (run it without your own computer)
+
+The server can serve the built website itself, so one service hosts everything at one address. Any host
+that deploys from a GitHub repository works (Render, Railway, Fly.io, Azure App Service, ...). Deploy the
+`main` branch.
+
+**Commands the host needs** (the repo root has a `package.json` for this):
+
+| Step | Command |
+|---|---|
+| Build | `npm run build` (installs both parts and builds the client into `client/dist`) |
+| Start | `npm start` (runs migrations, creates the first admin if missing, then starts the server) |
+| Health check path | `/api/health` |
+| Node version | 20 or newer |
+
+**Resources:** one web service plus one PostgreSQL database.
+
+**Environment variables** (enter them in the host's dashboard; never commit them):
+
+| Variable | Value |
+|---|---|
+| `NODE_ENV` | `production` |
+| `DATABASE_URL` | the hosted database's connection string |
+| `DATABASE_SSL` | `true` (if the database requires an encrypted connection) |
+| `JWT_SECRET` | a new long random value |
+| `APP_URL` and `CLIENT_ORIGIN` | the public `https://` address of the site |
+| `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` | the first admin; use a strong password. With `NODE_ENV=production` the default password is refused and no admin is created |
+| `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `SLACK_TEAM_ID` | see section 5 |
+
+After the first deploy:
+
+1. In your Slack app (**OAuth & Permissions > Redirect URLs**) add `<APP_URL>/api/auth/slack/callback` and click **Save URLs**.
+2. Open the site and sign in with Slack, or with the seeded admin at `<APP_URL>/login?email=1`.
+3. Under **Users**, give the right people the manager or admin role, and set each person's manager.
+4. Delete any test accounts and change the seeded admin password if it was ever shared.
+
+Every merge into `main` redeploys automatically on most hosts. New database migrations run on start.
+
 ## Notes on the leave balance model
 
 - Each employee has one balance row per (leave type, year), with an `allotted_days` and `used_days` count.
